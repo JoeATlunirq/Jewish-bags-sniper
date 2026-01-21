@@ -68,7 +68,8 @@ export default function OnboardingPage() {
                 .select();  // Returns the updated row(s), empty array if none updated
 
             if (updateError) {
-                setStatus("Database error while redeeming code.");
+                console.error("Supabase update error:", updateError);
+                setStatus(`Database error: ${updateError.message}`);
                 setLoading(false);
                 return;
             }
