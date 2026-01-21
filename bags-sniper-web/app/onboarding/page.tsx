@@ -55,8 +55,8 @@ export default function OnboardingPage() {
 
             setStatus("Redeeming code...");
 
-            // 2. Mark Code as Used - use .select() to verify update actually happened
-            const { data: updateData, error: updateError } = await supabase
+            // 2. Mark Code as Used
+            const { error: updateError } = await supabase
                 .from("signup_codes")
                 .update({
                     is_used: true,
@@ -64,8 +64,7 @@ export default function OnboardingPage() {
                     used_at: new Date().toISOString()
                 })
                 .eq("code", appCodeInput)
-                .eq("is_used", false)
-                .select();  // Returns the updated row(s), empty array if none updated
+                .eq("is_used", false);
 
             if (updateError) {
                 console.error("Supabase update error:", updateError);
@@ -74,8 +73,14 @@ export default function OnboardingPage() {
                 return;
             }
 
-            // Check if any row was actually updated (handles race condition)
-            if (!updateData || updateData.length === 0) {
+            // Verify the code was actually updated (handles race condition)
+            const { data: verifyData } = await supabase
+                .from("signup_codes")
+                .select("is_used, used_by")
+                .eq("code", appCodeInput)
+                .single();
+
+            if (!verifyData || !verifyData.is_used || verifyData.used_by !== walletAddress) {
                 setStatus("Code failed to redeem (possibly used just now).");
                 setLoading(false);
                 return;
