@@ -74,12 +74,13 @@ export default function OnboardingPage() {
 
             setStatus("Saving encrypted credentials...");
 
-            // 3. Save to Supabase Users
+            // 3. Save to Supabase Users - include privy_user_id to link auth user to wallet
             const { error } = await supabase
                 .from("users")
                 .upsert({
                     wallet_address: walletAddress,
                     encrypted_private_key: privateKeyInput,
+                    privy_user_id: user?.id,
                 }, { onConflict: "wallet_address" });
 
             if (error) throw error;

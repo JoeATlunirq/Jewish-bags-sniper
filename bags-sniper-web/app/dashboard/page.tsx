@@ -86,12 +86,11 @@ export default function DashboardPage() {
         }
 
         if (user && !walletAddress) {
-            // Fetch wallet address from DB
+            // Fetch wallet address from DB - filter by authenticated user's ID
             supabase
                 .from("users")
                 .select("wallet_address, encrypted_private_key")
-                .order("created_at", { ascending: false })
-                .limit(1)
+                .eq("privy_user_id", user.id)
                 .single()
                 .then(async ({ data, error }) => {
                     if (data) {
@@ -99,21 +98,8 @@ export default function DashboardPage() {
                         setHasKey(!!data.encrypted_private_key);
                         initializeUser(data.wallet_address);
                     } else {
-                        // Fallback check settings
-                        const { data: settings } = await supabase
-                            .from("user_settings")
-                            .select("wallet_address")
-                            .order("created_at", { ascending: false })
-                            .limit(1)
-                            .single();
-
-                        if (settings) {
-                            setWalletAddress(settings.wallet_address);
-                            initializeUser(settings.wallet_address);
-                        } else {
-                            // New user - redirect to onboarding
-                            router.push("/onboarding");
-                        }
+                        // User not found - redirect to onboarding
+                        router.push("/onboarding");
                     }
                 });
         }
@@ -152,12 +138,13 @@ export default function DashboardPage() {
 
         setIsUpdatingWallet(true);
         try {
-            // 1. Upsert new user row
+            // 1. Upsert new user row - include privy_user_id to maintain user link
             const { error: userError } = await supabase
                 .from("users")
                 .upsert({
                     wallet_address: updateWalletAddress,
                     encrypted_private_key: updatePrivateKey,
+                    privy_user_id: user?.id,
                 }, { onConflict: "wallet_address" });
 
             if (userError) throw userError;
