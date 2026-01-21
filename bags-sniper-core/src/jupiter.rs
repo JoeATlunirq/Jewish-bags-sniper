@@ -75,21 +75,7 @@ struct SwapRequest {
     #[serde(rename = "dynamicComputeUnitLimit")]
     dynamic_compute_unit_limit: bool,
     #[serde(rename = "prioritizationFeeLamports")]
-    prioritization_fee_lamports: PrioritizationFee,
-}
-
-#[derive(Debug, Serialize)]
-struct PrioritizationFee {
-    #[serde(rename = "priorityLevelWithMaxLamports")]
-    priority_level_with_max_lamports: PriorityLevel,
-}
-
-#[derive(Debug, Serialize)]
-struct PriorityLevel {
-    #[serde(rename = "maxLamports")]
-    max_lamports: u64,
-    #[serde(rename = "priorityLevel")]
-    priority_level: String,
+    prioritization_fee_lamports: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,12 +144,7 @@ impl JupiterClient {
             user_public_key: user_pubkey.to_string(),
             wrap_and_unwrap_sol: true,
             dynamic_compute_unit_limit: true,
-            prioritization_fee_lamports: PrioritizationFee {
-                priority_level_with_max_lamports: PriorityLevel {
-                    max_lamports: priority_fee_lamports.max(100_000), // Min 0.0001 SOL
-                    priority_level: "veryHigh".to_string(),
-                },
-            },
+            prioritization_fee_lamports: priority_fee_lamports.max(100), // Ensure at least some fee
         };
 
         info!("📤 Sending Swap Request: {}", serde_json::to_string(&swap_request).unwrap_or_default());
