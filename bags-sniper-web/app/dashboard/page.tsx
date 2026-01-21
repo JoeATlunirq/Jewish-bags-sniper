@@ -90,21 +90,9 @@ export default function DashboardPage() {
             supabase
                 .from("users")
                 .select("wallet_address, encrypted_private_key")
-                .single() // We assume RLS or filter by auth.uid() usually, but here we depend on RLS?
-                // actually "users" table might not be linked to auth.users.id automatically if we didn't set it up
-                // In Onboarding we upserted with `privy_user_id`. Now we don't have privy ID.
-                // We need to fix the `register` flow to link supabase user id.
-                // For now, let's assume we can fetch by... wait.
-                // Onboarding saved `wallet_address`.
-                // We need to fetch the row.
-                // Let's assume the user just onboarded.
-                // Or we can fetch based on the assumption that RLS returns *my* row?
-                // Or we saved it in localStorage?
-                // "bags_onboarded" is in localstorage.
-                // Let's rely on finding the user by... email?
-                // Actually `useAuth` gives us `user.id`.
-                // In Onboarding I should have saved `user_id: user.id`.
-                // I'll assume I can find the user.
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single()
                 .then(async ({ data, error }) => {
                     if (data) {
                         setWalletAddress(data.wallet_address);
@@ -112,7 +100,13 @@ export default function DashboardPage() {
                         initializeUser(data.wallet_address);
                     } else {
                         // Fallback check settings
-                        const { data: settings } = await supabase.from("user_settings").select("wallet_address").single();
+                        const { data: settings } = await supabase
+                            .from("user_settings")
+                            .select("wallet_address")
+                            .order("created_at", { ascending: false })
+                            .limit(1)
+                            .single();
+
                         if (settings) {
                             setWalletAddress(settings.wallet_address);
                             initializeUser(settings.wallet_address);
@@ -123,6 +117,7 @@ export default function DashboardPage() {
                     }
                 });
         }
+        setLoading(false);
     }, [authLoading, user, router]);
 
     const initializeUser = async (address: string) => {
@@ -647,6 +642,51 @@ export default function DashboardPage() {
                                         <p className="text-xs text-gray-600 mt-1">
                                             💡 Send /start to @JewishBAGS_Bot to get your User ID
                                         </p>
+                                    </div>
+
+                                    {/* Update Wallet Connection */}
+                                    <div className="mb-4 border-t border-white/10 pt-4">
+                                        <div
+                                            className="flex items-center justify-between mb-2 cursor-pointer hover:bg-white/5 p-1 rounded"
+                                            onClick={() => setShowUpdateWallet(!showUpdateWallet)}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">🔑</span>
+                                                <h4 className="font-semibold text-sm">Update Wallet Connection</h4>
+                                            </div>
+                                            <span className="text-xs text-gray-500">{showUpdateWallet ? "▼" : "▶"}</span>
+                                        </div>
+
+                                        {showUpdateWallet && (
+                                            <div className="space-y-3 p-3 bg-red-900/10 border border-red-500/20 rounded-lg">
+                                                <p className="text-xs text-red-400 font-bold">
+                                                    ⚠️ Warning: This will replace your current sniper wallet.
+                                                </p>
+                                                <input
+                                                    type="text"
+                                                    value={updateWalletAddress}
+                                                    onChange={(e) => setUpdateWalletAddress(e.target.value)}
+                                                    placeholder="New Wallet Address"
+                                                    className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00de00]/50 font-mono"
+                                                    autoComplete="off"
+                                                />
+                                                <input
+                                                    type="password"
+                                                    value={updatePrivateKey}
+                                                    onChange={(e) => setUpdatePrivateKey(e.target.value)}
+                                                    placeholder="New Private Key (Base58)"
+                                                    className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00de00]/50 font-mono"
+                                                    autoComplete="new-password"
+                                                />
+                                                <button
+                                                    onClick={handleUpdateWallet}
+                                                    disabled={isUpdatingWallet}
+                                                    className="w-full py-2 bg-red-600/20 text-red-400 border border-red-500/50 font-bold rounded-lg hover:bg-red-600/30 transition-colors text-xs"
+                                                >
+                                                    {isUpdatingWallet ? "Updating..." : "CONFIRM NEW WALLET"}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <button
