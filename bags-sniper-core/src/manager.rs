@@ -9,6 +9,7 @@ use std::collections::HashSet;
 pub struct UserSniper {
     pub user_id: String,
     pub watchlist: HashMap<String, f64>, // mint -> buy_amount (SOL)
+    pub creators: HashMap<String, String>, // mint -> creator_address
     pub settings: crate::supabase::UserSettings,
     pub executor: crate::executor::TransactionExecutor,
     pub private_key: String,
@@ -46,6 +47,7 @@ impl SniperManager {
         let user_sniper = UserSniper {
             user_id: user_id.clone(),
             watchlist: HashMap::new(),
+            creators: HashMap::new(),
             settings,
             private_key: private_key.clone(),
             executor,
@@ -60,7 +62,42 @@ impl SniperManager {
             user.watchlist.insert(mint.clone(), buy_amount);
             info!("User {} added {} to watchlist ({} SOL)", user_id, mint, buy_amount);
             
-            // Strategy B fallback: Derive Config PDAs for V1 and V2
+            // ---------------------------------------------------------
+            // 1. Fetch Creator Address (Async Background Task)
+            // ---------------------------------------------------------
+            let rpc_url = self.rpc_url.clone();
+            let mint_clone = mint.clone();
+            let users_clone = self.users.clone();
+            let user_id_clone = user_id.clone();
+            
+            tokio::spawn(async move {
+                use solana_client::rpc_client::RpcClient;
+                use solana_sdk::pubkey::Pubkey;
+                use std::str::FromStr;
+
+                // Create a temporary RPC client for this fetch
+                let client = RpcClient::new(rpc_url);
+                if let Ok(mint_pk) = Pubkey::from_str(&mint_clone) {
+                    info!("Fetching creator for mint: {}", mint_clone);
+                    match crate::metadata::fetch_creator(&client, &mint_pk) {
+                        Ok(creator) => {
+                            info!("✅ Creator Fetched for {}: {}", mint_clone, creator);
+                            let mut users_guard = users_clone.lock().unwrap();
+                            if let Some(u) = users_guard.get_mut(&user_id_clone) {
+                                u.creators.insert(mint_clone.clone(), creator.to_string());
+                            }
+                        },
+                        Err(e) => {
+                            error!("❌ Failed to fetch creator for {}: {}", mint_clone, e);
+                            // Optional: Retry logic or default to secure mode
+                        }
+                    }
+                }
+            });
+
+            // ---------------------------------------------------------
+            // 2. Strategy B fallback: Derive Config PDAs for V1 and V2
+            // ---------------------------------------------------------
             // Seeds: [b"fee_share_config", mint.key()]
             use solana_sdk::pubkey::Pubkey;
             use std::str::FromStr;
@@ -99,6 +136,7 @@ impl SniperManager {
         let mut users = self.users.lock().unwrap();
         if let Some(user) = users.get_mut(user_id) {
             user.watchlist.remove(mint);
+            user.creators.remove(mint); // Cleanup
             info!("User {} removed {} from watchlist", user_id, mint);
             Ok(())
         } else {
@@ -144,6 +182,25 @@ impl SniperManager {
 
             for (uid, user) in users_guard.iter() {
                 for (mint, buy_amount) in &user.watchlist {
+                    // ---------------------------------------------------------
+                    // CREATOR FILTER CHECK
+                    // ---------------------------------------------------------
+                    // 1. Do we have a known creator for this mint?
+                    if let Some(creator_addr) = user.creators.get(mint) {
+                        // 2. Is the CREATOR one of the involved accounts (signer)?
+                        if !involved_accounts.contains(creator_addr) {
+                            // SKIP: The Claimer is NOT the Creator
+                            // (We don't log here to avoid spamming logs on every random claim)
+                            continue;
+                        }
+                        info!("🎯 CREATOR MATCHED! Creator {} is executing a claim on {}", creator_addr, mint);
+                    } else {
+                        // Edge Case: Metadata hasn't loaded yet.
+                        // Action: BLOCK (Safe Mode) - Better to miss a snipe than false positive
+                        // Only log periodically if needed
+                        continue; 
+                    }
+
                     info!("🔎 Checking user {} watchlist mint {} against {} resolved accounts", 
                         &uid[..8], 
                         &mint[..12],

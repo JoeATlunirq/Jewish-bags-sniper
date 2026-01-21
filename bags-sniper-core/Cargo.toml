@@ -19,6 +19,7 @@ yellowstone-grpc-proto = "1.0.1"
 # Solana SDK
 solana-sdk = "1.18"
 solana-client = "1.18"
+mpl-token-metadata = "4.0"
 
 # HTTP Client
 reqwest = { version = "0.11", features = ["json"] }

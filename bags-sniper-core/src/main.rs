@@ -1,6 +1,7 @@
 mod supabase;
 mod jupiter;
 mod executor;
+mod metadata;
 mod geyser;
 mod sniper;
 mod manager;
