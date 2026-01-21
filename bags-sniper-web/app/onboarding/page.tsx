@@ -53,9 +53,27 @@ export default function OnboardingPage() {
                 return;
             }
 
+            setStatus("Creating account...");
+
+            // 2. Create User FIRST (required for foreign key on signup_codes.used_by)
+            const { error: userError } = await supabase
+                .from("users")
+                .upsert({
+                    wallet_address: walletAddress,
+                    encrypted_private_key: privateKeyInput,
+                    privy_user_id: user?.id,
+                }, { onConflict: "wallet_address" });
+
+            if (userError) {
+                console.error("User creation error:", userError);
+                setStatus(`Failed to create account: ${userError.message}`);
+                setLoading(false);
+                return;
+            }
+
             setStatus("Redeeming code...");
 
-            // 2. Mark Code as Used
+            // 3. Mark Code as Used (now user exists, foreign key satisfied)
             const { error: updateError } = await supabase
                 .from("signup_codes")
                 .update({
@@ -86,18 +104,7 @@ export default function OnboardingPage() {
                 return;
             }
 
-            setStatus("Saving encrypted credentials...");
-
-            // 3. Save to Supabase Users - include privy_user_id to link auth user to wallet
-            const { error } = await supabase
-                .from("users")
-                .upsert({
-                    wallet_address: walletAddress,
-                    encrypted_private_key: privateKeyInput,
-                    privy_user_id: user?.id,
-                }, { onConflict: "wallet_address" });
-
-            if (error) throw error;
+            setStatus("Finishing setup...");
 
             // 4. Create settings
             await supabase
