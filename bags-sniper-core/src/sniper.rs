@@ -51,7 +51,7 @@ impl Sniper {
         // Official Bags Fee Share V2 Discriminators from IDL
         let claim_damm_v2: [u8; 8] = [232, 175, 106, 19, 168, 54, 186, 108];
         let claim_dbc: [u8; 8] = [229, 142, 38, 65, 198, 50, 110, 58];
-
+        let claim_user: [u8; 8] = [164, 64, 55, 199, 90, 78, 147, 188];
 
         for inst in instructions {
             // Get the program ID for this instruction
@@ -73,9 +73,9 @@ impl Sniper {
                     inst.data.len()
                 );
 
-                // Check if it's a valid Fee Share V2 distribution (Filling the Pot)
-                let is_claim = inst.data.starts_with(&claim_damm_v2) || 
-                              inst.data.starts_with(&claim_dbc);
+                // Check if it's a User Claiming Fees (Withdrawal)
+                // This is the "Creator Claim" event the user wants to snipe.
+                let is_claim = inst.data.starts_with(&claim_user);
 
                 if is_claim {
                     // Strategy A & B: Extract all accounts involved in this instruction
