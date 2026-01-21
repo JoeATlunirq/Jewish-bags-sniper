@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --bags-green: #00de00;
+  --bags-black: #000000;
+  --bags-dark: #0a0a0a;
+  --bags-gray: #1a1a1a;
+}
+
+html,
+body {
+  background-color: var(--bags-black);
+  color: white;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bags-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bags-green);
+  border-radius: 3px;
+}
+
+/* Green glow effects */
+.glow-green {
+  box-shadow: 0 0 20px rgba(0, 222, 0, 0.3);
+}
+
+.glow-green-sm {
+  box-shadow: 0 0 10px rgba(0, 222, 0, 0.2);
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: var(--bags-green);
+  color: black;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0, 222, 0, 0.5);
+}
+
+.btn-outline {
+  border: 1px solid var(--bags-green);
+  color: var(--bags-green);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  background-color: rgba(0, 222, 0, 0.1);
+}
+
+/* Table styling */
+.table-bags th {
+  color: #888;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.table-bags td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.table-bags tr:hover td {
+  background: rgba(0, 222, 0, 0.05);
+}
