@@ -74,8 +74,6 @@ struct SwapRequest {
     wrap_and_unwrap_sol: bool,
     #[serde(rename = "dynamicComputeUnitLimit")]
     dynamic_compute_unit_limit: bool,
-    #[serde(rename = "prioritizationFeeLamports")]
-    prioritization_fee_lamports: u64,
     #[serde(rename = "computeUnitPriceMicroLamports")]
     compute_unit_price_micro_lamports: u64,
 }
@@ -146,8 +144,7 @@ impl JupiterClient {
             user_public_key: user_pubkey.to_string(),
             wrap_and_unwrap_sol: true,
             dynamic_compute_unit_limit: true,
-            prioritization_fee_lamports: priority_fee_lamports.max(100), // Ensure at least some fee
-            compute_unit_price_micro_lamports: 10000, // ~0.01 SOL per 1M CU, helps land faster
+            compute_unit_price_micro_lamports: 10000, // ~0.004 SOL per swap, fast but reasonable
         };
 
         info!("📤 Sending Swap Request: {}", serde_json::to_string(&swap_request).unwrap_or_default());
