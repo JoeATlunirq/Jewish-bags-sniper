@@ -182,28 +182,6 @@ impl SniperManager {
 
             for (uid, user) in users_guard.iter() {
                 for (mint, buy_amount) in &user.watchlist {
-                    // ---------------------------------------------------------
-                    // CREATOR FILTER CHECK
-                    // ---------------------------------------------------------
-                    info!("🔍 Checking mint {} for user {} (creators loaded: {})", 
-                        &mint[..12], &uid[..8], user.creators.len());
-                    
-                    // 1. Do we have a known creator for this mint?
-                    if let Some(creator_addr) = user.creators.get(mint) {
-                        // 2. Is the CREATOR one of the involved accounts (signer)?
-                        if !involved_accounts.contains(creator_addr) {
-                            // SKIP: The Claimer is NOT the Creator
-                            info!("⏭️ SKIP: Claimer is NOT creator {} for {}", &creator_addr[..8], &mint[..12]);
-                            continue;
-                        }
-                        info!("🎯 CREATOR MATCHED! Creator {} is executing a claim on {}", creator_addr, mint);
-                    } else {
-                        // Edge Case: Metadata hasn't loaded yet.
-                        // TEMPORARY: Allow for debugging - log warning
-                        info!("⚠️ WARNING: No creator found for {}, ALLOWING for now (debug mode)", &mint[..12]);
-                        // In production, you may want to `continue;` here to block
-                    }
-
                     info!("🔎 Checking user {} watchlist mint {} against {} resolved accounts", 
                         &uid[..8], 
                         &mint[..12],
