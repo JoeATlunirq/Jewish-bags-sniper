@@ -139,18 +139,30 @@ export default function DashboardPage() {
 
         setIsUpdatingWallet(true);
         try {
-            // 1. Delete existing user row for this auth user (ensures no orphaned wallets)
+            // 1. Encrypt the private key before storing
+            const { encryptPrivateKey } = await import("@/lib/encryption");
+            let encryptedKey: string;
+            try {
+                encryptedKey = await encryptPrivateKey(updatePrivateKey);
+            } catch (encErr) {
+                console.error("Encryption error:", encErr);
+                setKeySetupMessage("Failed to encrypt private key. Check ENCRYPTION_KEY in environment.");
+                setIsUpdatingWallet(false);
+                return;
+            }
+
+            // 2. Delete existing user row for this auth user (ensures no orphaned wallets)
             await supabase
                 .from("users")
                 .delete()
                 .eq("privy_user_id", user?.id);
 
-            // 2. Insert new user row with the new wallet
+            // 3. Insert new user row with the encrypted wallet
             const { error: userError } = await supabase
                 .from("users")
                 .insert({
                     wallet_address: updateWalletAddress,
-                    encrypted_private_key: updatePrivateKey,
+                    encrypted_private_key: encryptedKey,
                     privy_user_id: user?.id,
                 });
 

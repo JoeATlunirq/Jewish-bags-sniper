@@ -41,3 +41,8 @@ dotenv = "0.15"
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
+
+# Encryption (for private key decryption)
+aes-gcm = "0.10"
+pbkdf2 = { version = "0.12", features = ["simple"] }
+sha2 = "0.10"

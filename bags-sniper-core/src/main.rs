@@ -6,6 +6,7 @@ mod geyser;
 mod sniper;
 mod manager;
 mod telegram;
+mod encryption;
 
 use crate::supabase::SupabaseClient;
 use crate::jupiter::JupiterClient;
@@ -143,6 +144,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn refresh_users(supabase: &SupabaseClient, manager: &SniperManager) -> anyhow::Result<()> {
     let active_users = supabase.get_active_users().await?;
+    let encryption_key = env::var("ENCRYPTION_KEY").unwrap_or_else(|_| "22e83f82f9bacb57ccb213476ff60db9de7be2e8d0d41cf1e6704265ccc626fd".to_string());
     
     for user in active_users {
         let (watchlist, settings, pk) = tokio::join!(
@@ -152,9 +154,18 @@ async fn refresh_users(supabase: &SupabaseClient, manager: &SniperManager) -> an
         );
         
         match &pk {
-            Ok(Some(private_key)) => {
+            Ok(Some(stored_key)) => {
+                // Decrypt the private key if encrypted
+                let private_key = match encryption::decrypt_private_key(stored_key, &encryption_key) {
+                    Ok(decrypted) => decrypted,
+                    Err(e) => {
+                        error!("❌ Failed to decrypt private key for {}: {}", &user.wallet_address[..8], e);
+                        continue;
+                    }
+                };
+                
                 let settings = settings.unwrap_or_default();
-                manager.register_user(user.wallet_address.clone(), private_key.clone(), settings);
+                manager.register_user(user.wallet_address.clone(), private_key, settings);
                 
                 if let Ok(items) = watchlist {
                     for item in items {

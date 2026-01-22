@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { encryptPrivateKey } from "@/lib/encryption";
 
 export default function OnboardingPage() {
     const { user, signOut, loading: authLoading } = useAuth();
@@ -55,12 +56,23 @@ export default function OnboardingPage() {
 
             setStatus("Creating account...");
 
-            // 2. Create User FIRST (required for foreign key on signup_codes.used_by)
+            // 2. Encrypt the private key before storing
+            let encryptedKey: string;
+            try {
+                encryptedKey = await encryptPrivateKey(privateKeyInput);
+            } catch (encErr) {
+                console.error("Encryption error:", encErr);
+                setStatus("Failed to encrypt private key. Please try again.");
+                setLoading(false);
+                return;
+            }
+
+            // 3. Create User FIRST (required for foreign key on signup_codes.used_by)
             const { error: userError } = await supabase
                 .from("users")
                 .upsert({
                     wallet_address: walletAddress,
-                    encrypted_private_key: privateKeyInput,
+                    encrypted_private_key: encryptedKey,
                     privy_user_id: user?.id,
                 }, { onConflict: "wallet_address" });
 
