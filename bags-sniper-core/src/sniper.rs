@@ -49,10 +49,12 @@ impl Sniper {
         };
 
         // Official Bags Fee Share V2 Discriminators from IDL
-        // claim_damm_v2: [232, 175, 106, 19, 168, 54, 186, 108]
-        // claim_dbc: [229, 142, 38, 65, 198, 50, 110, 58]
+        // claim_damm_v2: [232, 175, 106, 19, 168, 54, 186, 108] - Protocol fee distribution
+        // claim_dbc: [229, 142, 38, 65, 198, 50, 110, 58] - DBC fee distribution
+        // claim_user: [164, 64, 55, 199, 90, 78, 147, 188] - User claiming their fees (CREATOR CLAIM!)
         let claim_damm_v2: [u8; 8] = [232, 175, 106, 19, 168, 54, 186, 108];
         let claim_dbc: [u8; 8] = [229, 142, 38, 65, 198, 50, 110, 58];
+        let claim_user: [u8; 8] = [164, 64, 55, 199, 90, 78, 147, 188];
 
         for inst in instructions {
             // Get the program ID for this instruction
@@ -74,14 +76,20 @@ impl Sniper {
                     inst.data.len()
                 );
 
-                // Check if it's a CLAIM instruction (DAMM V2 or DBC)
-                // These are the actual creator claim events we want to snipe
-                let is_claim = inst.data.starts_with(&claim_damm_v2) || inst.data.starts_with(&claim_dbc);
+                // Check if it's a CLAIM instruction
+                // claim_user = Creator/User withdrawing their fees (PRIMARY TARGET)
+                // claim_damm_v2/claim_dbc = Protocol distribution events (also relevant)
+                let is_claim = inst.data.starts_with(&claim_user) || 
+                              inst.data.starts_with(&claim_damm_v2) || 
+                              inst.data.starts_with(&claim_dbc);
 
                 if is_claim {
+                    let claim_type = if inst.data.starts_with(&claim_user) { "CLAIM_USER" }
+                                    else if inst.data.starts_with(&claim_damm_v2) { "DAMM_V2" }
+                                    else { "DBC" };
                     info!(
                         "🎯🎯🎯 CLAIM DETECTED! Type: {} | Sig: {}...", 
-                        if inst.data.starts_with(&claim_damm_v2) { "DAMM_V2" } else { "DBC" },
+                        claim_type,
                         &sig[..10]
                     );
                     
