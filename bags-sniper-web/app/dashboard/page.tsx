@@ -86,40 +86,21 @@ export default function DashboardPage() {
         }
 
         if (user && !walletAddress) {
-            // Fetch wallet address from DB - filter by authenticated user's ID
+            // Fetch wallet address from DB - STRICTLY filter by authenticated user's ID
+            // No fallback to "most recent" - each user must have their own wallet
             supabase
                 .from("users")
                 .select("wallet_address, encrypted_private_key")
                 .eq("privy_user_id", user.id)
-                .maybeSingle()  // Use maybeSingle to avoid 406 error when no row found
+                .maybeSingle()
                 .then(async ({ data, error }) => {
                     if (data) {
                         setWalletAddress(data.wallet_address);
                         setHasKey(!!data.encrypted_private_key);
                         initializeUser(data.wallet_address);
                     } else {
-                        // Fallback: Try to find user by most recent entry (for existing users without privy_user_id)
-                        const { data: fallbackData } = await supabase
-                            .from("users")
-                            .select("wallet_address, encrypted_private_key")
-                            .order("created_at", { ascending: false })
-                            .limit(1)
-                            .single();
-
-                        if (fallbackData) {
-                            // Update the existing row to link it to this auth user
-                            await supabase
-                                .from("users")
-                                .update({ privy_user_id: user.id })
-                                .eq("wallet_address", fallbackData.wallet_address);
-
-                            setWalletAddress(fallbackData.wallet_address);
-                            setHasKey(!!fallbackData.encrypted_private_key);
-                            initializeUser(fallbackData.wallet_address);
-                        } else {
-                            // Truly new user - redirect to onboarding
-                            router.push("/onboarding");
-                        }
+                        // No wallet linked to this auth user - redirect to onboarding
+                        router.push("/onboarding");
                     }
                 });
         }
@@ -158,14 +139,20 @@ export default function DashboardPage() {
 
         setIsUpdatingWallet(true);
         try {
-            // 1. Upsert new user row - include privy_user_id to maintain user link
+            // 1. Delete existing user row for this auth user (ensures no orphaned wallets)
+            await supabase
+                .from("users")
+                .delete()
+                .eq("privy_user_id", user?.id);
+
+            // 2. Insert new user row with the new wallet
             const { error: userError } = await supabase
                 .from("users")
-                .upsert({
+                .insert({
                     wallet_address: updateWalletAddress,
                     encrypted_private_key: updatePrivateKey,
                     privy_user_id: user?.id,
-                }, { onConflict: "wallet_address" });
+                });
 
             if (userError) throw userError;
 
