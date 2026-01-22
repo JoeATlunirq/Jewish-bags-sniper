@@ -141,17 +141,13 @@ impl JupiterClient {
     ) -> Result<String> {
         let url = format!("{}/swap", JUPITER_API_URL);
 
-        // Calculate compute unit price from user's priority fee
-        // Assume ~500k compute units per swap, convert lamports to micro-lamports per CU
-        let compute_unit_price = (priority_fee_lamports * 1000) / 500_000;
-        
         let swap_request = SwapRequest {
             quote_response: quote,
             user_public_key: user_pubkey.to_string(),
             wrap_and_unwrap_sol: true,
             dynamic_compute_unit_limit: true,
-            prioritization_fee_lamports: priority_fee_lamports.max(100),
-            compute_unit_price_micro_lamports: compute_unit_price.max(1000), // Minimum 1000 micro-lamports
+            prioritization_fee_lamports: priority_fee_lamports.max(100), // Ensure at least some fee
+            compute_unit_price_micro_lamports: 10000, // ~0.01 SOL per 1M CU, helps land faster
         };
 
         info!("📤 Sending Swap Request: {}", serde_json::to_string(&swap_request).unwrap_or_default());
