@@ -91,15 +91,35 @@ export default function DashboardPage() {
                 .from("users")
                 .select("wallet_address, encrypted_private_key")
                 .eq("privy_user_id", user.id)
-                .single()
+                .maybeSingle()  // Use maybeSingle to avoid 406 error when no row found
                 .then(async ({ data, error }) => {
                     if (data) {
                         setWalletAddress(data.wallet_address);
                         setHasKey(!!data.encrypted_private_key);
                         initializeUser(data.wallet_address);
                     } else {
-                        // User not found - redirect to onboarding
-                        router.push("/onboarding");
+                        // Fallback: Try to find user by most recent entry (for existing users without privy_user_id)
+                        const { data: fallbackData } = await supabase
+                            .from("users")
+                            .select("wallet_address, encrypted_private_key")
+                            .order("created_at", { ascending: false })
+                            .limit(1)
+                            .single();
+
+                        if (fallbackData) {
+                            // Update the existing row to link it to this auth user
+                            await supabase
+                                .from("users")
+                                .update({ privy_user_id: user.id })
+                                .eq("wallet_address", fallbackData.wallet_address);
+
+                            setWalletAddress(fallbackData.wallet_address);
+                            setHasKey(!!fallbackData.encrypted_private_key);
+                            initializeUser(fallbackData.wallet_address);
+                        } else {
+                            // Truly new user - redirect to onboarding
+                            router.push("/onboarding");
+                        }
                     }
                 });
         }
